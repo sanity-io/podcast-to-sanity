@@ -1,0 +1,38 @@
+{
+  "name": "podcast-to-sanity",
+  "version": "1.0.0",
+  "description": "Import your podcast RSS-feed to Sanity",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/index",
+    "inspect": "node --inspect src/index",
+    "start": "node dist/index",
+    "build": "cp -R src/* dist",
+    "test": "jest"
+  },
+  "author": "Knut Melvær <knut@sanity.io",
+  "license": "MIT",
+  "dependencies": {
+    "@sanity/block-tools": "^0.132.5",
+    "@sanity/client": "^0.132.5",
+    "@sanity/import": "^0.132.5",
+    "@sanity/schema": "^0.132.5",
+    "@sanity/uuid": "^0.132.5",
+    "axios": "^0.18.0",
+    "chalk": "^2.4.1",
+    "dotenv": "^6.0.0",
+    "inquirer": "^6.0.0",
+    "inquirer-autocomplete-prompt": "^1.0.1",
+    "is-url": "^1.2.4",
+    "jsdom": "^11.12.0",
+    "rss-parser": "^3.4.2",
+    "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "eslint": "^4.16.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.8.0",
+    "jest": "^22.1.4",
+    "nodemon": "^1.14.11"
+  }
+}
