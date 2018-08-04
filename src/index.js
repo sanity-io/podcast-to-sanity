@@ -1,23 +1,17 @@
-/**
- * 1. Prompt user for RSS feed
- * 2. Prompt user for Sanity Project ID
- * 3. Prompt user for token
- * 4. Confirm
- * 5. Download schemas and files
- * 5. Check if podcast allready is in iTunes? By setting id?
- * 6. Upload them to Sanity
- * 7. Check if Sanity has plugins installed?
- * 8. CaT: Sanity Podcast Server?
- */
-
-const chalk = require('chalk');
+#!/usr/bin/env node
+/* eslint-disable no-console */
 const { prompt } = require('inquirer');
+const chalk = require('chalk');
 const isUrl = require('is-url');
+const Ora = require('ora');
 const Parser = require('rss-parser');
-const uuid = require('@sanity/uuid');
+const Rx = require('rxjs');
 const sanityClient = require('@sanity/client');
 const sanityImport = require('@sanity/import');
-const { client, categories: iTunesCategories, onProgress, htmlToBlocks } = require('./lib');
+const uuid = require('@sanity/uuid');
+const {
+  cli, categories: iTunesCategories, joinCategories, htmlToBlocks,
+} = require('./lib');
 
 const parser = new Parser({
   customFields: {
@@ -34,29 +28,24 @@ const parser = new Parser({
 const { log } = console;
 
 async function parsePodcast({
-  feedUrl,
   title,
   description,
   link,
+  url,
   itunes: {
     image,
     owner,
     author,
     subtitle,
     summary,
-    explicit
+    explicit,
   } = {},
   category,
   language,
   guid,
   type,
 }) {
-  const joinCategories = (categoryList, pos) => {
-    if (!categoryList[pos]['itunes:category']) {
-      return categoryList[pos].$.text;
-    }
-    return `${categoryList[pos].$.text} > ${categoryList[pos]['itunes:category'][0].$.text}`;
-  };
+
 
   const categories = {
     firstCategory: joinCategories(category, 0),
@@ -87,13 +76,14 @@ async function parsePodcast({
       },
     ]);
   }
-  const payload = {
+  const parsedPodcast = {
     _id: guid || uuid(),
     _type: 'podcast',
     title,
     subtitle,
     link,
     description,
+    url,
     coverArt: {
       _sanityAsset: `image@${image}`,
     },
@@ -106,14 +96,13 @@ async function parsePodcast({
         email: owner.email,
         name: owner.name,
       },
-      url: url || feedUrl,
       type,
       categories: {
         ...promptedCategories,
       },
     },
   };
-  return payload;
+  return parsedPodcast;
 }
 
 function parseEpisode(
@@ -154,7 +143,7 @@ function parseEpisode(
     title,
     subtitle,
     explicit: (explicit === 'yes' && explicit !== 'clean'),
-    summary: summary || contentSnippet,
+    summary: summary || contentSnippet,
     description: htmlToBlocks(content),
   };
   if (getFiles && url) {
@@ -169,88 +158,142 @@ function parseEpisode(
   return preparedEpisode;
 }
 
+async function importer({
+  rssFeed, projectId, dataset, token, getFiles,
+}) {
+  const rssData = await parser.parseURL(rssFeed).catch(console.error);
+  const preparedPodcast = await parsePodcast(rssData);
+  const preparedEpisode = rssData.items.map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id)); // eslint-disable-line no-underscore-dangle
+  const client = sanityClient({
+    projectId, dataset, token, useCdn: false,
+  });
 
-async function main() {
-  await log(chalk.red('Welcome to Podcast to Sanity importer!'));
 
-  const answers = await prompt([
-    {
+  let spinner = new Ora('Starting import').start();
+  let currentStep;
+  function onProgress(opts) {
+    const { step, complete } = opts;
+    if (!step && complete) {
+      spinner.succeed();
+      return;
+    }
+
+    if (spinner && (step !== currentStep)) {
+      spinner.succeed();
+      spinner.start(step);
+    }
+
+    if (complete) {
+      spinner = spin.start();
+      spinner.render();
+      spinner.succeed();
+    }
+    currentStep = step;
+  }
+
+  const result = await sanityImport([preparedPodcast, ...preparedEpisode], { client, operation: 'createOrReplace', onProgress }).catch(({ message }) => {
+    spinner.fail(`Import failed: ${message}`);
+    return process.kill(process.pid, 'SIGINT');
+  });
+
+  if (result) {
+    spinner.succeed(`Imported the podcast and ${result} episodes! 🎉`);
+    chalk.green(`
+Run
+    $ sanity install podcast
+in your Sanity project studio folder to view your podcast and episodes.
+    `);
+    return process.kill(process.pid, 'SIGINT');
+  }
+}
+
+function main() {
+  log(chalk.red('🎙  Welcome to the podcast to sanity.io importer!\n\n'));
+  const prompts = new Rx.Subject();
+
+  let answers = {};
+
+  prompts.next({
+    type: 'input',
+    message: chalk.yellow('What is the RSS feed to your podcast?'),
+    name: 'rssFeed',
+    validate: value => (isUrl(value) ? true : chalk.red('This needs to be a valid URL')),
+  });
+
+  prompt(prompts).ui.process.subscribe(({ name, answer }) => {
+    answers = { ...answers, [name]: answer };
+    if (name === 'confirm') {
+      prompts.complete();
+    }
+  }, (err) => {
+    console.warn(err);
+  }, () => {
+    if (!answers.confirm) {
+      console.log('Maybe another time!');
+      return process.kill(process.pid, 'SIGINT');
+    }
+    return importer(answers);
+  });
+
+  const {
+    rssFeed, projectId, dataset, token, getFiles,
+  } = cli.flags;
+  if (!cli.flags.rssFeed) {
+    prompts.next({
       type: 'input',
       message: chalk.yellow('What is the RSS feed to your podcast?'),
       name: 'rssFeed',
       validate: value => (isUrl(value) ? true : chalk.red('This needs to be a valid URL')),
-    },
-    {
+    });
+  } else {
+    answers = { ...answers, rssFeed };
+  }
+  if (!cli.flags.projectId) {
+    prompts.next({
       type: 'input',
       message: chalk.green('What is your Sanity Project ID?'),
       name: 'projectId',
       validate: value => (value.length === 8 ? true : chalk.red('It needs to be 8 characters')),
-    },
-    {
+    });
+  } else {
+    answers = { ...answers, projectId };
+  }
+  if (!cli.flags.dataset) {
+    prompts.next({
       type: 'input',
       message: chalk.green('What is your Sanity Dataset?'),
-      name: 'sanityDataset',
+      name: 'dataset',
       default: 'production',
-    },
-    {
+    });
+  } else {
+    answers = { ...answers, dataset };
+  }
+
+  if (!cli.flags.token) {
+    prompts.next({
       type: 'input',
       message: chalk.green('You need a token that gives you write access to Sanity'),
-      name: 'sanityToken',
+      name: 'token',
       validate: value => (value.length ? true : chalk.red('You need to make a token. https://www.sanity.io/docs/access-control')),
+    });
+  } else {
+    answers = { ...answers, token };
+  }
 
-    },
-    {
+  if (!cli.flags.getFiles) {
+    prompts.next({
       type: 'confirm',
       message: chalk.green('Do you want to import the audio files to Sanity (y), or keep the original location (n)?'),
       name: 'getFiles',
-    },
-    {
-      type: 'confirm',
-      message: chalk.yellow('Are you sure you want to do this?'),
-      name: 'confirm',
-      validate(value) {
-        let done = this.async();
-
-        console.log(value);
-        if (!value) {
-          console.log('Maybe another time!');
-          process.kill(process.pid, 'SIGINT');
-          done(null, true);
-        }
-      },
-    },
-  ]);
-  if (!answers.confirm) {
-    console.log('Maybe another time!');
-    return process.kill(process.pid, 'SIGINT');
+    });
+  } else {
+    answers = { ...answers, getFiles };
   }
-  const result = await importer(answers);
-  console.log(result);
+  prompts.next({
+    type: 'confirm',
+    message: chalk.yellow('Are you sure you want to do this?'),
+    name: 'confirm',
+  });
 }
 
-
-async function importer({
-  rssFeed, projectId, sanityToken, sanityDataset, getFiles, client
-}) {
-
-  const rssData = await parser.parseURL(rssFeed).catch(console.error);
-  /* log(JSON.stringify(rssData, null, 2));
-  return process.exit(0); */
-  const preparedPodcast = await parsePodcast(rssData);
-  const preparedEpisode = rssData.items.map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id));
-  log(JSON.stringify({preparedPodcast, preparedEpisode}, null, 2))
-  return process.kill(process.pid, 'SIGINT');
-  const result = await sanityImport([preparedPodcast, ...preparedEpisode], { client, operation: 'createOrReplace', onProgress }).catch(({ message }) => console.error('Import failed: %s', message));
-  if (result) {
-    console.log('Imported %d documents', result);
-  }
-}
-
-// main();
-importer({
-  rssFeed: 'http://localhost:4444/saastr.rss',
-  projectId: 'j4iakyct',
-  sanityDataset: 'production',
-  sanityToken: 'skfyBRlPskah4gY15uMvTe6Y9b6ho8Izjz9PMYGjCYWsGIKYw7GWGY58fZiDzyEw2iXWlw856obfhXFhWPRPKGnt6hIBn6Ys5UWuMrZENt6igBgfTDp1pViPzweWTCTTr6quPow4Jbz40VezOhVxHtSWKCNFxQBQC23hajy5ikvMKUXjIWFQ',
-});
-
+main();

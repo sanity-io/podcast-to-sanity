@@ -25,14 +25,16 @@
     "inquirer-autocomplete-prompt": "^1.0.1",
     "is-url": "^1.2.4",
     "jsdom": "^11.12.0",
+    "meow": "^5.0.0",
+    "ora": "^3.0.0",
     "rss-parser": "^3.4.2",
+    "rxjs": "^6.2.2",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
     "eslint": "^4.16.0",
     "eslint-config-airbnb-base": "^12.1.0",
     "eslint-plugin-import": "^2.8.0",
-    "jest": "^22.1.4",
-    "nodemon": "^1.14.11"
+    "jest": "^22.1.4"
   }
 }
