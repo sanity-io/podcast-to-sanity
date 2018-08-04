@@ -2,12 +2,12 @@
   "name": "podcast-to-sanity",
   "version": "1.0.0",
   "description": "Import your podcast RSS-feed to Sanity",
-  "main": "index.js",
+  "main": "src/podcast-to-sanity.js",
+  "bin": {
+    "podcast-to-sanity": "./bin/podcast-to-sanity.js"
+  },
   "scripts": {
-    "dev": "nodemon src/index",
-    "inspect": "node --inspect src/index",
-    "start": "node dist/index",
-    "build": "cp -R src/* dist",
+    "start": "node bin/podcast-to-sanity.js",
     "test": "jest"
   },
   "author": "Knut Melvær <knut@sanity.io",
@@ -28,8 +28,7 @@
     "meow": "^5.0.0",
     "ora": "^3.0.0",
     "rss-parser": "^3.4.2",
-    "rxjs": "^6.2.2",
-    "uuid": "^3.3.2"
+    "rxjs": "^6.2.2"
   },
   "devDependencies": {
     "eslint": "^4.16.0",
