@@ -4,7 +4,7 @@ This CLI lets you import podcasts into Sanity via their RSS-feed.
 
 ## Installation
 
-npm install -g podcast-to-sanity
+`npm install -g podcast-to-sanity`
 
 ## Requirements
 
@@ -12,11 +12,15 @@ Requires node.js version >= 7.6
 
 ## Usage
 
-Install the CLI tool (see Installation above)
+Install the CLI tool (see Installation above).
 
-Install the Sanity CLI tool (if not already done) and log in
+Have your Sanity project ID, dataset name and a write token ready.
 
-npm install -g @sanity/cli && sanity login
+Run `podcast-to-sanity` in your terminal and follow the instructions.
+
+Run `sanity install podcast` in your Sanity project folder to view the content in the studio, or [copy these schema files](https://github.com/kmelve/sanity-plugin-podcast/blob/master/src/podcast.js) if you want to tweak them.
+
+You can also check out the [sanity podcast server](https://github.com/kmelve/sanity-podcast-server) if you want to try out the RSS-feed from your data.
 
 ## Documentation
 
