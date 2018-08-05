@@ -31,7 +31,6 @@ async function parsePodcast({
   title,
   description,
   link,
-  url,
   itunes: {
     image,
     owner,
@@ -45,7 +44,6 @@ async function parsePodcast({
   guid,
   type,
 }) {
-
 
   const categories = {
     firstCategory: joinCategories(category, 0),
@@ -83,7 +81,6 @@ async function parsePodcast({
     subtitle,
     link,
     description,
-    url,
     coverArt: {
       _sanityAsset: `image@${image}`,
     },
@@ -163,6 +160,8 @@ async function importer({
 }) {
   const rssData = await parser.parseURL(rssFeed).catch(console.error);
   const preparedPodcast = await parsePodcast(rssData);
+  log(JSON.stringify(preparedPodcast, null, 2))
+  process.kill(process.pid, 'SIGINT');
   const preparedEpisode = rssData.items.map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id)); // eslint-disable-line no-underscore-dangle
   const client = sanityClient({
     projectId, dataset, token, useCdn: false,
@@ -301,4 +300,8 @@ function main() {
   });
 }
 
-main();
+module.exports = {
+  parsePodcast,
+  parseEpisode,
+  main,
+}

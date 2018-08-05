@@ -11,6 +11,9 @@
     "test": "jest",
     "lint": "eslint ./src"
   },
+  "jest": {
+    "testEnvironment": "node"
+  },
   "author": "Knut Melvær <knut@sanity.io",
   "license": "MIT",
   "dependencies": {

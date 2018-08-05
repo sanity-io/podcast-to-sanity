@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
-require('../src/index.js');
-
+const { main } = require('../src/index.js');
+main();
