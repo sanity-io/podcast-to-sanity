@@ -160,8 +160,6 @@ async function importer({
 }) {
   const rssData = await parser.parseURL(rssFeed).catch(console.error);
   const preparedPodcast = await parsePodcast(rssData);
-  log(JSON.stringify(preparedPodcast, null, 2))
-  process.kill(process.pid, 'SIGINT');
   const preparedEpisode = rssData.items.map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id)); // eslint-disable-line no-underscore-dangle
   const client = sanityClient({
     projectId, dataset, token, useCdn: false,
