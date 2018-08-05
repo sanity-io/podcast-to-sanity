@@ -197,7 +197,7 @@ async function importer({
     return process.kill(process.pid, 'SIGINT');
   });
 
-  if (result) {
+  if (Number.isInteger(result)) {
     spin.succeed(`Imported the podcast and ${result} episodes! 🎉`);
     chalk.green(`
 Run
@@ -211,13 +211,7 @@ in your Sanity project studio folder to view your podcast and episodes.
 function handleError (err) {
   console.warn(err);
 }
-function handleComplete () {
-  if (!this.answers.confirm) {
-    console.log('Maybe another time!');
-    return process.kill(process.pid, 'SIGINT');
-  }
-  return importer(this.answers);
-}
+
 
 function main() {
   log(chalk.red('🎙  Welcome to the podcast to sanity.io importer!\n\n'));
@@ -237,11 +231,18 @@ function main() {
     if (name === 'confirm') {
       prompts.complete();
     }
-  }, handleError, handleComplete.bind(answers));
+  }, handleError, () => {
+    if (!answers.confirm) {
+      console.log('Maybe another time!');
+      return process.kill(process.pid, 'SIGINT');
+    }
+    return importer(answers);
+  });
 
   const {
     rssFeed, projectId, dataset, token, getFiles,
   } = cli.flags;
+
   if (!cli.flags.rssFeed) {
     prompts.next({
       type: 'input',
