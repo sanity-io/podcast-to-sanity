@@ -169,7 +169,8 @@ async function importer({
   });
 
 
-  let spinner = new Ora('Starting import').start();
+  const spin = new Ora('Starting import').start();
+  let spinner;
   let currentStep;
   function onProgress(opts) {
     const { step, complete } = opts;
@@ -192,12 +193,12 @@ async function importer({
   }
 
   const result = await sanityImport([preparedPodcast, ...preparedEpisode], { client, operation: 'createOrReplace', onProgress }).catch(({ message }) => {
-    spinner.fail(`Import failed: ${message}`);
+    spin.fail(`Import failed: ${message}`);
     return process.kill(process.pid, 'SIGINT');
   });
 
   if (result) {
-    spinner.succeed(`Imported the podcast and ${result} episodes! 🎉`);
+    spin.succeed(`Imported the podcast and ${result} episodes! 🎉`);
     chalk.green(`
 Run
     $ sanity install podcast
@@ -205,6 +206,17 @@ in your Sanity project studio folder to view your podcast and episodes.
     `);
     return process.kill(process.pid, 'SIGINT');
   }
+  return process.kill(process.pid, 'SIGINT');
+}
+function handleError (err) {
+  console.warn(err);
+}
+function handleComplete () {
+  if (!this.answers.confirm) {
+    console.log('Maybe another time!');
+    return process.kill(process.pid, 'SIGINT');
+  }
+  return importer(this.answers);
 }
 
 function main() {
@@ -225,15 +237,7 @@ function main() {
     if (name === 'confirm') {
       prompts.complete();
     }
-  }, (err) => {
-    console.warn(err);
-  }, () => {
-    if (!answers.confirm) {
-      console.log('Maybe another time!');
-      return process.kill(process.pid, 'SIGINT');
-    }
-    return importer(answers);
-  });
+  }, handleError, handleComplete.bind(answers));
 
   const {
     rssFeed, projectId, dataset, token, getFiles,
@@ -245,7 +249,7 @@ function main() {
       name: 'rssFeed',
       validate: value => (isUrl(value) ? true : chalk.red('This needs to be a valid URL')),
     });
-  } else {
+  } else if (cli.flags.rssFeed) {
     answers = { ...answers, rssFeed };
   }
   if (!cli.flags.projectId) {
@@ -255,7 +259,7 @@ function main() {
       name: 'projectId',
       validate: value => (value.length === 8 ? true : chalk.red('It needs to be 8 characters')),
     });
-  } else {
+  } else if (cli.flags.projectId) {
     answers = { ...answers, projectId };
   }
   if (!cli.flags.dataset) {
@@ -265,7 +269,7 @@ function main() {
       name: 'dataset',
       default: 'production',
     });
-  } else {
+  } else if (cli.flags.dataset) {
     answers = { ...answers, dataset };
   }
 
@@ -276,7 +280,7 @@ function main() {
       name: 'token',
       validate: value => (value.length ? true : chalk.red('You need to make a token. https://www.sanity.io/docs/access-control')),
     });
-  } else {
+  } else if (cli.flags.token) {
     answers = { ...answers, token };
   }
 
@@ -286,7 +290,7 @@ function main() {
       message: chalk.green('Do you want to import the audio files to Sanity (y), or keep the original location (n)?'),
       name: 'getFiles',
     });
-  } else {
+  } else if (cli.flags.getFiles) {
     answers = { ...answers, getFiles };
   }
   prompts.next({
