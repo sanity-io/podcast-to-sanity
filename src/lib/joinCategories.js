@@ -1,4 +1,7 @@
 const joinCategories = (categoryList, pos) => {
+  if(!categoryList) {
+    return '';
+  }
   if (!categoryList[pos]['itunes:category']) {
     return categoryList[pos].$.text;
   }
