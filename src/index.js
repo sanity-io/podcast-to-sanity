@@ -8,10 +8,11 @@ const Parser = require('rss-parser');
 const Rx = require('rxjs');
 const sanityClient = require('@sanity/client');
 const sanityImport = require('@sanity/import');
-const uuid = require('@sanity/uuid');
+const uuid = require('uuid/v5');
 const {
   cli, categories: iTunesCategories, joinCategories, htmlToBlocks,
 } = require('./lib');
+const DEBUG = process.env.DEBUG || (process.env.DEBUG === "true") || false;
 
 const parser = new Parser({
   customFields: {
@@ -25,7 +26,8 @@ const parser = new Parser({
   },
 });
 
-const { log } = console;
+const log = (string) => console.log(JSON.stringify(string, null, 2));
+
 
 async function parsePodcast({
   title,
@@ -36,7 +38,6 @@ async function parsePodcast({
     owner,
     author,
     subtitle,
-    summary,
     explicit,
   } = {},
   category,
@@ -47,7 +48,7 @@ async function parsePodcast({
 
   const categories = {
     firstCategory: joinCategories(category, 0),
-    secondCategory: joinCategories(category, 1),
+    secondaryCategory: joinCategories(category, 1),
     tertiaryCategory: joinCategories(category, 2),
   };
 
@@ -63,7 +64,7 @@ async function parsePodcast({
       {
         type: 'list',
         message: chalk.yellow('What is the second category this podcast belongs to?'),
-        name: 'secondCategory',
+        name: 'secondaryCategory',
         choices: [{ value: 'None' }, ...iTunesCategories],
       },
       {
@@ -75,11 +76,10 @@ async function parsePodcast({
     ]);
   }
   const parsedPodcast = {
-    _id: guid || uuid(),
+    _id: guid || uuid((link || title), uuid.URL),
     _type: 'podcast',
     title,
     subtitle,
-    link,
     description,
     coverArt: {
       _sanityAsset: `image@${image}`,
@@ -94,6 +94,7 @@ async function parsePodcast({
         name: owner.name,
       },
       type,
+      url: link,
       categories: {
         ...promptedCategories,
       },
@@ -126,6 +127,7 @@ function parseEpisode(
   podcastId,
 ) {
   const preparedEpisode = {
+    _id: uuid(`${title} + ${pubDate}`, uuid.URL),
     _type: 'episode',
     schedule: {
       publish: new Date(pubDate).toISOString(),
@@ -134,14 +136,15 @@ function parseEpisode(
       _ref: podcastId,
       _type: 'reference',
       _weak: true,
-      _key: uuid(),
+      _key: uuid(podcastId, uuid.URL),
     }],
     duration,
     title,
     subtitle,
     explicit: (explicit === 'yes' && explicit !== 'clean'),
     summary: summary || contentSnippet,
-    description: htmlToBlocks(content),
+    content: htmlToBlocks(contentEncoded) || htmlToBlocks(content),
+    description: htmlToBlocks(description) || htmlToBlocks(content),
   };
   if (getFiles && url) {
     preparedEpisode.file = { _sanityAsset: `file@${url}` }; // eslint-disable-line no-underscore-dangle
@@ -158,33 +161,48 @@ function parseEpisode(
 async function importer({
   rssFeed, projectId, dataset, token, getFiles,
 }) {
-  const rssData = await parser.parseURL(rssFeed).catch(console.error);
+  const rssData = await parser.parseURL(rssFeed).catch(err => {
+    console.log(chalk.red(err));
+    return process.kill(process.pid, 'SIGINT');
+  });
+  if (DEBUG) {
+    log({rssData});
+  }
   const preparedPodcast = await parsePodcast(rssData);
+  if (DEBUG) {
+    log({preparedPodcast});
+  }
   const preparedEpisode = rssData.items.map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id)); // eslint-disable-line no-underscore-dangle
+  if (DEBUG) {
+    log({preparedEpisode});
+  }
   const client = sanityClient({
     projectId, dataset, token, useCdn: false,
   });
 
 
-  const spin = new Ora('Starting import').start();
-  let spinner;
+  const spin = new Ora('Running import').start();
   let currentStep;
+
   function onProgress(opts) {
-    const { step, complete } = opts;
-    if (!step && complete) {
-      spinner.succeed();
-      return;
+    const { step, complete, total, current } = opts;
+    if (process.env.DEBUG) {
+      log({currentStep, opts})
+    }
+    if (!currentStep) {
+      spin.start(step);
     }
 
-    if (spinner && (step !== currentStep)) {
-      spinner.succeed();
-      spinner.start(step);
+    if (spin && (step !== currentStep)) {
+      spin.succeed();
+      spin.start(step);
+    }
+    if (spin && total && current) {
+      spin.text = `${currentStep}: ${current} / ${total}`;
     }
 
     if (complete) {
-      spinner = spin.start();
-      spinner.render();
-      spinner.succeed();
+      spin.succeed();
     }
     currentStep = step;
   }
@@ -196,12 +214,12 @@ async function importer({
 
   if (Number.isInteger(result)) {
     spin.succeed(`Imported the podcast and ${result} episodes! 🎉`);
-    chalk.green(`
+    console.log(chalk.green(`
 Run
     $ sanity install podcast
 in your Sanity project studio folder to view your podcast and episodes.
-    `);
-    return process.kill(process.pid, 'SIGINT');
+    `));
+    process.kill(process.pid, 'SIGINT');
   }
   return process.kill(process.pid, 'SIGINT');
 }
@@ -211,7 +229,10 @@ function handleError (err) {
 
 
 function main() {
-  log(chalk.red('🎙  Welcome to the podcast to sanity.io importer!\n\n'));
+  console.log(chalk.red('🎙  Welcome to the podcast to sanity.io importer!\n\n'));
+  if (DEBUG) {
+    console.log(chalk.red('DEBUG MODE'))
+  }
   const prompts = new Rx.Subject();
 
   let answers = {};
