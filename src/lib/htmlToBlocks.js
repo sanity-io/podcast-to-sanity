@@ -41,7 +41,10 @@ const extractImages = (el, next) => {
   return undefined;
 };
 
-module.exports = (html, options) => {
+function htmlToBlocks(html, options) {
+  if(!html) {
+    return [];
+  }
   const blocks = blockTools.htmlToBlocks(html, {
     rules: [{ deserialize: extractImages }],
     blockContentType,
@@ -50,3 +53,5 @@ module.exports = (html, options) => {
 
   return blocks;
 };
+
+module.exports = htmlToBlocks;
