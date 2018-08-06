@@ -34,11 +34,11 @@ test('Data structure from RSS xml to output as joined strings', () => {
   ]
   const sanityCategories = {
     firstCategory: "Technology",
-    secondCategory: "Technology > Tech News",
+    secondaryCategory: "Technology > Tech News",
     tertiaryCategory: "Business > Careers"
   }
 
   expect(joinCategories(rssCategories, 0)).toBe(sanityCategories.firstCategory)
-  expect(joinCategories(rssCategories, 1)).toBe(sanityCategories.secondCategory)
+  expect(joinCategories(rssCategories, 1)).toBe(sanityCategories.secondaryCategory)
   expect(joinCategories(rssCategories, 2)).toBe(sanityCategories.tertiaryCategory)
 })
