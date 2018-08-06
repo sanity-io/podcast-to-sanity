@@ -1,6 +1,6 @@
 {
   "name": "podcast-to-sanity",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Import your podcast RSS-feed to Sanity",
   "main": "src/podcast-to-sanity.js",
   "bin": {
@@ -21,7 +21,6 @@
     "@sanity/client": "^0.132.5",
     "@sanity/import": "^0.132.5",
     "@sanity/schema": "^0.132.5",
-    "@sanity/uuid": "^0.132.5",
     "axios": "^0.18.0",
     "chalk": "^2.4.1",
     "dotenv": "^6.0.0",
