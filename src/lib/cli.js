@@ -9,6 +9,7 @@ const cli = meow(`
     --dataset, -d Sanity.io dataset
     --token, -t Sanity token with write access
     --keep-file-location, -k Import audio file urls and not files to Sanity
+    --missing, -m only add missing episodes
     --help, -h Output this help text
 
   Examples
@@ -35,6 +36,10 @@ const cli = meow(`
     getFiles: {
       type: 'boolean',
       alias: 'k',
+    },
+    missing: {
+      type: 'boolean',
+      alias: 'm',
     },
     help: {
       type: 'boolean',
