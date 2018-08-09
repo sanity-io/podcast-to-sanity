@@ -1,6 +1,7 @@
 const { JSDOM } = require('jsdom');
 const Schema = require('@sanity/schema').default;
 const blockTools = require('@sanity/block-tools').default;
+const sanitizeHTML = require('sanitize-html')
 
 const schema = Schema.compile({
   name: 'default',
@@ -45,7 +46,13 @@ function htmlToBlocks(html, options) {
   if(!html) {
     return [];
   }
-  const blocks = blockTools.htmlToBlocks(html, {
+  const sanitizedHTML = sanitizeHTML(html, {
+    allowedTags: [ 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'br', 'p', 'a', 'ul', 'ol',
+  'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'div',
+  'table', 'thead', 'caption', 'tbody', 'tr', 'th', 'td', 'pre' ]
+  })
+
+  const blocks = blockTools.htmlToBlocks(sanitizedHTML, {
     rules: [{ deserialize: extractImages }],
     blockContentType,
     parseHtml: htmlContent => new JSDOM(htmlContent).window.document,
