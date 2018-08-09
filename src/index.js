@@ -12,7 +12,7 @@ const uuid = require('uuid/v5');
 const {
   cli, categories: iTunesCategories, joinCategories, htmlToBlocks,
 } = require('./lib');
-const DEBUG = process.env.DEBUG || (process.env.DEBUG === "true") || false;
+const DEBUG = process.env.DEBUG === "true" || false;
 
 const parser = new Parser({
   customFields: {
@@ -107,7 +107,6 @@ function parseEpisode(
   {
     getFiles,
     title,
-    link,
     pubDate,
     summary,
     'content:encoded': contentEncoded,
@@ -120,7 +119,10 @@ function parseEpisode(
       explicit,
       duration,
       image,
-    },
+      keywords,
+      type,
+      season
+    } = {},
     content,
     contentSnippet,
   },
@@ -141,10 +143,14 @@ function parseEpisode(
     duration,
     title,
     subtitle,
+    itunes: {
+      type,
+      season
+    },
     explicit: (explicit === 'yes' && explicit !== 'clean'),
     summary: summary || contentSnippet,
-    content: htmlToBlocks(contentEncoded) || htmlToBlocks(content),
-    description: htmlToBlocks(description) || htmlToBlocks(content),
+    content: content ? htmlToBlocks(content) : htmlToBlocks(contentEncoded),
+    description: description ? htmlToBlocks(description) : htmlToBlocks(content),
   };
   if (getFiles && url) {
     preparedEpisode.file = { _sanityAsset: `file@${url}` }; // eslint-disable-line no-underscore-dangle
@@ -159,7 +165,7 @@ function parseEpisode(
 }
 
 async function importer({
-  rssFeed, projectId, dataset, token, getFiles,
+  rssFeed, projectId, dataset, token, getFiles, missing
 }) {
   const rssData = await parser.parseURL(rssFeed).catch(err => {
     console.log(chalk.red(err));
@@ -172,7 +178,7 @@ async function importer({
   if (DEBUG) {
     log({preparedPodcast});
   }
-  const preparedEpisode = rssData.items.map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id)); // eslint-disable-line no-underscore-dangle
+  const preparedEpisode = rssData.items.slice(1,2).map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id)); // eslint-disable-line no-underscore-dangle
   if (DEBUG) {
     log({preparedEpisode});
   }
@@ -180,13 +186,12 @@ async function importer({
     projectId, dataset, token, useCdn: false,
   });
 
-
   const spin = new Ora('Running import').start();
   let currentStep;
 
   function onProgress(opts) {
     const { step, complete, total, current } = opts;
-    if (process.env.DEBUG) {
+    if (DEBUG) {
       log({currentStep, opts})
     }
     if (!currentStep) {
@@ -206,8 +211,8 @@ async function importer({
     }
     currentStep = step;
   }
-
-  const result = await sanityImport([preparedPodcast, ...preparedEpisode], { client, operation: 'createOrReplace', onProgress }).catch(({ message }) => {
+  const operation = missing ? 'createIfNotExists' : 'createOrReplace';
+  const result = await sanityImport([preparedPodcast, ...preparedEpisode], { client, operation, onProgress }).catch(({ message }) => {
     spin.fail(`Import failed: ${message}`);
     return process.kill(process.pid, 'SIGINT');
   });
@@ -258,7 +263,7 @@ function main() {
   });
 
   const {
-    rssFeed, projectId, dataset, token, getFiles,
+    rssFeed, projectId, dataset, token, getFiles, missing
   } = cli.flags;
 
   if (!cli.flags.rssFeed) {
@@ -312,6 +317,17 @@ function main() {
   } else if (cli.flags.getFiles) {
     answers = { ...answers, getFiles };
   }
+
+  if (!cli.flags.missing) {
+    prompts.next({
+      type: 'confirm',
+      message: chalk.green('Do you want to just add new content (y)?'),
+      name: 'missing',
+    });
+  } else if (cli.flags.missing) {
+    answers = { ...answers, missing };
+  }
+
   prompts.next({
     type: 'confirm',
     message: chalk.yellow('Are you sure you want to do this?'),
