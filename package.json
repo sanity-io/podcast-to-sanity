@@ -1,6 +1,6 @@
 {
   "name": "podcast-to-sanity",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "Import your podcast RSS-feed to Sanity",
   "main": "src/podcast-to-sanity.js",
   "bin": {
