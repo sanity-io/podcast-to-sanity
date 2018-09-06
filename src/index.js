@@ -167,6 +167,7 @@ function parseEpisode(
 async function importer({
   rssFeed, projectId, dataset, token, getFiles, missing
 }) {
+  console.log({rssFeed, projectId, dataset, token, getFiles, missing})
   const rssData = await parser.parseURL(rssFeed).catch(err => {
     console.log(chalk.red(err));
     return process.kill(process.pid, 'SIGINT');
@@ -178,7 +179,7 @@ async function importer({
   if (DEBUG) {
     log({preparedPodcast});
   }
-  const preparedEpisode = rssData.items.slice(1,2).map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id)); // eslint-disable-line no-underscore-dangle
+  const preparedEpisode = rssData.items.map(episode => parseEpisode({ getFiles, ...episode }, preparedPodcast._id)); // eslint-disable-line no-underscore-dangle
   if (DEBUG) {
     log({preparedEpisode});
   }
@@ -212,6 +213,9 @@ async function importer({
     currentStep = step;
   }
   const operation = missing ? 'createIfNotExists' : 'createOrReplace';
+  if(DEBUG) {
+    console.log({operation})
+  }
   const result = await sanityImport([preparedPodcast, ...preparedEpisode], { client, operation, onProgress }).catch(({ message }) => {
     spin.fail(`Import failed: ${message}`);
     return process.kill(process.pid, 'SIGINT');
