@@ -4,30 +4,20 @@ const { prompt } = require('inquirer');
 const chalk = require('chalk');
 const isUrl = require('is-url');
 const Ora = require('ora');
-const Parser = require('rss-parser');
 const Rx = require('rxjs');
 const sanityClient = require('@sanity/client');
 const sanityImport = require('@sanity/import');
+const html2plaintext = require('html2plaintext')
 const uuid = require('uuid/v5');
-const {
-  cli, categories: iTunesCategories, joinCategories, htmlToBlocks,
-} = require('./lib');
+const cli = require('./cli')
+const iTunesCategories = require('./categories')
+const joinCategories = require('./joinCategories')
+const parseHtmlToBlocks = require('./parseHtmlToBlocks')
+const parser = require('./parser')
+
 const DEBUG = process.env.DEBUG === "true" || false;
 
-const parser = new Parser({
-  customFields: {
-    feed: [
-      ['itunes:category', 'category', { keepArray: true }],
-      ['itunes:type', 'type'],
-    ],
-    item: [
-      ['itunes:episodeType', 'episodeType'], 'itunes:explicit', 'itunes:keywords',
-    ],
-  },
-});
-
 const log = (string) => console.log(JSON.stringify(string, null, 2));
-
 
 async function parsePodcast({
   title,
@@ -149,8 +139,8 @@ function parseEpisode(
     },
     explicit: (explicit === 'yes' && explicit !== 'clean'),
     summary: summary || contentSnippet,
-    content: content ? htmlToBlocks(content) : htmlToBlocks(contentEncoded),
-    description: description ? htmlToBlocks(description) : htmlToBlocks(content),
+    content: content ? parseHtmlToBlocks(content) : parseHtmlToBlocks(contentEncoded),
+    description: description ? html2plaintext(description) : html2plaintext(content),
   };
   if (getFiles && url) {
     preparedEpisode.file = { _sanityAsset: `file@${url}` }; // eslint-disable-line no-underscore-dangle
@@ -167,7 +157,9 @@ function parseEpisode(
 async function importer({
   rssFeed, projectId, dataset, token, getFiles, missing
 }) {
-  console.log({rssFeed, projectId, dataset, token, getFiles, missing})
+  if (DEBUG) {
+    log({rssFeed, projectId, dataset, token, getFiles, missing})
+  }
   const rssData = await parser.parseURL(rssFeed).catch(err => {
     console.log(chalk.red(err));
     return process.kill(process.pid, 'SIGINT');
