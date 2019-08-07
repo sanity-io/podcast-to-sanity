@@ -1,6 +1,6 @@
-const { JSDOM } = require('jsdom');
-const Schema = require('@sanity/schema').default;
-const blockTools = require('@sanity/block-tools').default;
+const { JSDOM } = require('jsdom')
+const Schema = require('@sanity/schema').default
+const blockTools = require('@sanity/block-tools').default
 const sanitizeHTML = require('sanitize-html')
 
 const schema = Schema.compile({
@@ -14,16 +14,16 @@ const schema = Schema.compile({
           title: 'Body',
           name: 'body',
           type: 'array',
-          of: [{ type: 'block' }, { type: 'image' }],
-        },
-      ],
-    },
-  ],
-});
+          of: [{ type: 'block' }, { type: 'image' }]
+        }
+      ]
+    }
+  ]
+})
 
 const blockContentType = schema
   .get('mock')
-  .fields.find(field => field.name === 'body').type;
+  .fields.find(field => field.name === 'body').type
 
 const extractImages = (el, next) => {
   if (
@@ -34,31 +34,58 @@ const extractImages = (el, next) => {
     return {
       _sanityAsset: `image@${el.childNodes[0]
         .getAttribute('src')
-        .replace(/^\/\//, 'https://')}`,
-    };
+        .replace(/^\/\//, 'https://')}`
+    }
   }
 
   // Only convert block-level images, for now
-  return undefined;
-};
+  return undefined
+}
 
-function htmlToBlocks(html, options) {
-  if(!html) {
-    return [];
+function htmlToBlocks (html, options) {
+  if (!html) {
+    return []
   }
   const sanitizedHTML = sanitizeHTML(html, {
-    allowedTags: [ 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'br', 'p', 'a', 'ul', 'ol',
-  'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'div',
-  'table', 'thead', 'caption', 'tbody', 'tr', 'th', 'td', 'pre' ]
+    allowedTags: [
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'blockquote',
+      'br',
+      'p',
+      'a',
+      'ul',
+      'ol',
+      'nl',
+      'li',
+      'b',
+      'i',
+      'strong',
+      'em',
+      'strike',
+      'code',
+      'hr',
+      'div',
+      'table',
+      'thead',
+      'caption',
+      'tbody',
+      'tr',
+      'th',
+      'td',
+      'pre'
+    ]
   })
 
-  const blocks = blockTools.htmlToBlocks(sanitizedHTML, {
+  const blocks = blockTools.htmlToBlocks(sanitizedHTML, blockContentType, {
     rules: [{ deserialize: extractImages }],
-    blockContentType,
-    parseHtml: htmlContent => new JSDOM(htmlContent).window.document,
-  });
+    parseHtml: htmlContent => new JSDOM(htmlContent)
+  })
 
-  return blocks;
-};
+  return blocks
+}
 
-module.exports = htmlToBlocks;
+module.exports = htmlToBlocks
