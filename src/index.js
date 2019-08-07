@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
+/* eslint-disable no-console, complexity */
 const { prompt } = require('inquirer');
 const chalk = require('chalk');
 const isUrl = require('is-url');
@@ -44,7 +44,7 @@ async function parsePodcast({
   language,
   guid,
   type,
-}) {
+}, fromCreate) {
 
   const categories = {
     firstCategory: joinCategories(category, 0),
@@ -75,8 +75,9 @@ async function parsePodcast({
       },
     ]);
   }
+  const _id = fromCreate ? 'podcast' : guid || uuid((link || title), uuid.URL)
   const parsedPodcast = {
-    _id: guid || uuid((link || title), uuid.URL),
+    _id,
     _type: 'podcast',
     title,
     subtitle,
@@ -127,6 +128,7 @@ function parseEpisode(
     contentSnippet,
   },
   podcastId,
+  fromCreate
 ) {
   const preparedEpisode = {
     _id: uuid(`${title} + ${pubDate}`, uuid.URL),
@@ -134,12 +136,12 @@ function parseEpisode(
     schedule: {
       publish: new Date(pubDate).toISOString(),
     },
-    podcast: [{
+    ...(!fromCreate && {podcast: [{
       _ref: podcastId,
       _type: 'reference',
       _weak: true,
       _key: uuid(podcastId, uuid.URL),
-    }],
+    }]}),
     duration,
     title,
     subtitle,
@@ -149,8 +151,8 @@ function parseEpisode(
     },
     explicit: (explicit === 'yes' && explicit !== 'clean'),
     summary: summary || contentSnippet,
-    content: content ? htmlToBlocks(content) : htmlToBlocks(contentEncoded),
-    description: description ? htmlToBlocks(description) : htmlToBlocks(content),
+    /* content: content ? htmlToBlocks(content) : htmlToBlocks(contentEncoded), */
+    /* description: description ? htmlToBlocks(description) : htmlToBlocks(content), */
   };
   if (getFiles && url) {
     preparedEpisode.file = { _sanityAsset: `file@${url}` }; // eslint-disable-line no-underscore-dangle
@@ -165,7 +167,7 @@ function parseEpisode(
 }
 
 async function importer({
-  rssFeed, projectId, dataset, token, getFiles, missing
+  rssFeed, projectId, dataset, token, getFiles, missing, fromCreate
 }) {
   console.log({rssFeed, projectId, dataset, token, getFiles, missing})
   const rssData = await parser.parseURL(rssFeed).catch(err => {
@@ -175,7 +177,7 @@ async function importer({
   if (DEBUG) {
     log({rssData});
   }
-  const preparedPodcast = await parsePodcast(rssData);
+  const preparedPodcast = await parsePodcast(rssData, fromCreate);
   if (DEBUG) {
     log({preparedPodcast});
   }
@@ -267,7 +269,7 @@ function main() {
   });
 
   const {
-    rssFeed, projectId, dataset, token, getFiles, missing
+    rssFeed, projectId, dataset, token, getFiles, missing, fromCreate
   } = cli.flags;
 
   if (!cli.flags.rssFeed) {
@@ -320,6 +322,16 @@ function main() {
     });
   } else if (cli.flags.getFiles) {
     answers = { ...answers, getFiles };
+  }
+
+  if(!cli.flags.fromCreate) {
+    prompts.next({
+      type: 'confirm',
+      message: chalk.green('Did you install a podcast studio from sanity.io/create?'),
+      name: 'fromCreate'
+    })
+  } else if (cli.flags.fromCreate) {
+    answers = { ...answers, fromCreate }
   }
 
   if (!cli.flags.missing) {
