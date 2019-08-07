@@ -42,50 +42,24 @@ const extractImages = (el, next) => {
   return undefined
 }
 
-function htmlToBlocks (html, options) {
-  if (!html) {
-    return []
+function parseHtmlToBlocks(html, options) {
+  if(!html) {
+    return [];
   }
-  const sanitizedHTML = sanitizeHTML(html, {
-    allowedTags: [
-      'h2',
-      'h3',
-      'h4',
-      'h5',
-      'h6',
-      'blockquote',
-      'br',
-      'p',
-      'a',
-      'ul',
-      'ol',
-      'nl',
-      'li',
-      'b',
-      'i',
-      'strong',
-      'em',
-      'strike',
-      'code',
-      'hr',
-      'div',
-      'table',
-      'thead',
-      'caption',
-      'tbody',
-      'tr',
-      'th',
-      'td',
-      'pre'
-    ]
+  const avoidOrphan = textString => /<[a-z][\s\S]*>/i.test(textString) ? textString : `<p>${textString}</p>`
+
+  const sanitizedHTML = sanitizeHTML(avoidOrphan(html), {
+    allowedTags: [ 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'br', 'p', 'a', 'ul', 'ol',
+  'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'div',
+  'table', 'thead', 'caption', 'tbody', 'tr', 'th', 'td', 'pre' ]
   })
 
   const blocks = blockTools.htmlToBlocks(sanitizedHTML, blockContentType, {
     rules: [{ deserialize: extractImages }],
-    parseHtml: htmlContent => new JSDOM(htmlContent)
-  })
+    parseHtml: htmlContent => new JSDOM(htmlContent).window.document,
+  });
 
   return blocks
 }
 
-module.exports = htmlToBlocks
+module.exports = parseHtmlToBlocks;

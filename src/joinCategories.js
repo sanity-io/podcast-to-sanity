@@ -1,5 +1,5 @@
-const joinCategories = (categoryList, pos) => {
-  if(!categoryList) {
+const joinCategories = (categoryList, pos = 0) => {
+  if(!categoryList || !categoryList[pos]) {
     return '';
   }
   if (!categoryList[pos]) {
