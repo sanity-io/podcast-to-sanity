@@ -20,7 +20,7 @@
   "dependencies": {
     "@sanity/block-tools": "^0.140.12",
     "@sanity/client": "^0.140.11",
-    "@sanity/import": "^0.140.11",
+    "@sanity/import": "^2.6.2",
     "@sanity/schema": "^0.140.9",
     "axios": "^0.18.0",
     "chalk": "^2.4.2",
@@ -29,7 +29,7 @@
     "inquirer": "^6.3.1",
     "inquirer-autocomplete-prompt": "^1.0.1",
     "is-url": "^1.2.4",
-    "jsdom": "^15.0.0",
+    "jsdom": "^16.6.0",
     "meow": "^5.0.0",
     "ora": "^3.4.0",
     "rss-parser": "^3.7.0",
