@@ -22,7 +22,7 @@
     "@sanity/client": "^0.140.11",
     "@sanity/import": "^0.140.11",
     "@sanity/schema": "^0.140.9",
-    "axios": "^0.18.0",
+    "axios": "^1.6.3",
     "chalk": "^2.4.2",
     "dotenv": "^7.0.0",
     "html2plaintext": "^2.1.2",
